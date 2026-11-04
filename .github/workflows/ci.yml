@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: No secrets in the n8n exports
+        run: |
+          # Workflows may only reference secrets as {{ $env.* }} expressions.
+          if grep -RInE '"(password|secret|apiKey|token)"\s*:\s*"[^={]' n8n/workflows; then
+            echo "Possible secret literal in n8n export" && exit 1
+          fi

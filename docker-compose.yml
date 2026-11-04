@@ -1,0 +1,50 @@
+# Local n8n for LendLoop, plus Mailpit as a catch-all SMTP server so emails can be
+# inspected at http://localhost:8025 without a real mail provider.
+# All values come from .env (copy .env.example). Nothing secret lives in this file.
+
+services:
+  n8n:
+    # Pinned so a fresh clone behaves the same; bump deliberately.
+    image: n8nio/n8n:2.45.7
+    restart: unless-stopped
+    ports:
+      # Bound to localhost only. The tunnel (cloudflared/ngrok) is what exposes webhooks.
+      - "127.0.0.1:5678:5678"
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY in .env}
+      # Public URL n8n prints for its webhooks: your tunnel URL in local dev.
+      WEBHOOK_URL: ${WEBHOOK_URL:?Set WEBHOOK_URL in .env (your tunnel URL)}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      TZ: ${GENERIC_TIMEZONE:-UTC}
+      # n8n 2.x blocks $env in nodes by default. The workflows read the HMAC secrets
+      # with {{ $env.LENDLOOP_* }} so the exported JSON holds only the expression,
+      # never the value. Trade-off: any workflow on this instance can read env vars,
+      # so only trusted editors should have access (see README, "Production").
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      # The signature Code nodes need Node's crypto module (HMAC + timingSafeEqual).
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
+      N8N_RUNNERS_ENABLED: "true"
+      N8N_PROXY_HOPS: "1"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      # Workflow secrets and settings, referenced from nodes via $env.
+      LENDLOOP_OUTBOUND_SECRET: ${LENDLOOP_OUTBOUND_SECRET:?Set LENDLOOP_OUTBOUND_SECRET in .env}
+      LENDLOOP_INBOUND_SECRET: ${LENDLOOP_INBOUND_SECRET:?Set LENDLOOP_INBOUND_SECRET in .env}
+      LENDLOOP_CONVEX_SITE_URL: ${LENDLOOP_CONVEX_SITE_URL:?Set LENDLOOP_CONVEX_SITE_URL in .env}
+      LENDLOOP_APP_URL: ${LENDLOOP_APP_URL:-http://localhost:3000}
+      LENDLOOP_FROM_EMAIL: ${LENDLOOP_FROM_EMAIL:-LendLoop <noreply@lendloop.test>}
+      LENDLOOP_ALERT_EMAIL: ${LENDLOOP_ALERT_EMAIL:-ops@lendloop.test}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - mailpit
+
+  mailpit:
+    # Local development only: accepts any mail on :1025 and shows it in a web UI.
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  n8n_data:

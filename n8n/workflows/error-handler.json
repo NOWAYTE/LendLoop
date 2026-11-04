@@ -1,0 +1,96 @@
+{
+  "name": "LendLoop – Error handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ca944651-0380-44c3-9359-aa86d136b5d1",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Builds an alert with ids and the error message only. Email addresses are\n// redacted in case a node error (e.g. SMTP rejection) echoed one.\nconst data = $input.first().json;\nconst redact = (s) => String(s || '').replace(/[^\\s@<>\"']+@[^\\s@<>\"']+/g, '[redacted]').slice(0, 500);\nconst summary = {\n  workflow: data.workflow?.name || 'unknown',\n  workflowId: data.workflow?.id || null,\n  executionId: data.execution?.id || null,\n  executionUrl: data.execution?.url || null,\n  failedNode: data.execution?.lastNodeExecuted || null,\n  message: redact(data.execution?.error?.message || data.trigger?.error?.message || 'Unknown error'),\n  mode: data.execution?.mode || null,\n  at: new Date().toISOString(),\n};\n// Shows up in \"docker compose logs n8n\" even if the alert email can't be sent.\nconsole.log('[lendloop-error]', JSON.stringify(summary));\nreturn [{ json: summary }];"
+      },
+      "id": "3b1547d2-f129-4028-a996-e1cc97ef34f5",
+      "name": "Summarise (no PII)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.LENDLOOP_FROM_EMAIL }}",
+        "toEmail": "={{ $env.LENDLOOP_ALERT_EMAIL }}",
+        "subject": "=[LendLoop] n8n workflow failed: {{ $json.workflow }}",
+        "emailFormat": "text",
+        "text": "=Workflow: {{ $json.workflow }} ({{ $json.workflowId }})\nExecution: {{ $json.executionId }}\nFailed node: {{ $json.failedNode }}\nError: {{ $json.message }}\nWhen: {{ $json.at }}\n{{ $json.executionUrl ? 'Open: ' + $json.executionUrl : '' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "e3142e70-1a05-4249-bff0-2c8c866dff0d",
+      "name": "Alert admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL",
+          "name": "LendLoop SMTP"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Summarise (no PII)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarise (no PII)": {
+      "main": [
+        [
+          {
+            "node": "Alert admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
+  },
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
