@@ -36,6 +36,8 @@ services:
       LENDLOOP_ALERT_EMAIL: ${LENDLOOP_ALERT_EMAIL:-ops@lendloop.test}
     volumes:
       - n8n_data:/home/node/.n8n
+      # Workflow exports + the Mailpit credential, for `n8n import:*` (read-only).
+      - ./n8n:/lendloop-n8n:ro
     depends_on:
       - mailpit
 

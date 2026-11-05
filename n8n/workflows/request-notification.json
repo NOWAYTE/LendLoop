@@ -1,4 +1,5 @@
 {
+  "id": "lendloopNotify001",
   "name": "LendLoop – Request notification",
   "nodes": [
     {
@@ -10,7 +11,7 @@
           "rawBody": true
         }
       },
-      "id": "2fab4e80-45ee-4e4d-adad-ce13c53234a3",
+      "id": "43edcd7d-d57d-4b6e-bd41-6c57a6971a11",
       "name": "Loan event webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -18,14 +19,14 @@
         0,
         300
       ],
-      "webhookId": "36475a62-6541-4460-a8c9-67cba05fa576"
+      "webhookId": "78cf7429-3529-4087-80d7-666fb1063230"
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
         "jsCode": "// Verifies a request from Convex. Rejects (valid: false) unless:\n//   X-LendLoop-Signature == hex(HMAC_SHA256(LENDLOOP_OUTBOUND_SECRET, timestamp + \".\" + rawBody))\n//   and X-LendLoop-Timestamp is within 5 minutes (replay protection).\n// Compared with crypto.timingSafeEqual. No headers, body or emails are logged.\nconst crypto = require('crypto');\nconst item = $input.first();\nconst headers = item.json.headers || {};\nconst secret = $env.LENDLOOP_OUTBOUND_SECRET;\nconst timestamp = String(headers['x-lendloop-timestamp'] || '');\nconst signature = String(headers['x-lendloop-signature'] || '').toLowerCase();\n\n// \"Raw Body\" is on in the webhook, so the exact bytes Convex signed arrive as binary.\n// Fallback: Convex sends compact JSON.stringify output, which re-serialising reproduces.\nlet rawBody;\nif (item.binary && item.binary.data) {\n  rawBody = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\n} else {\n  rawBody = JSON.stringify(item.json.body);\n}\n\nconst now = Math.floor(Date.now() / 1000);\nconst fresh = /^\\d{1,12}$/.test(timestamp) && Math.abs(now - Number(timestamp)) <= 300;\nlet valid = false;\nif (secret && fresh && /^[0-9a-f]{64}$/.test(signature)) {\n  const expected = crypto.createHmac('sha256', secret).update(timestamp + '.' + rawBody).digest('hex');\n  valid = crypto.timingSafeEqual(Buffer.from(expected, 'utf8'), Buffer.from(signature, 'utf8'));\n}\n\nlet payload = null;\nif (valid) {\n  try {\n    payload = JSON.parse(rawBody);\n  } catch (e) {\n    valid = false;\n  }\n}\n// Shape check: only the minimal fields Convex sends.\nif (valid && !(payload && ['created', 'status_changed'].includes(payload.type) &&\n    typeof payload.eventId === 'string' && typeof payload.recipientEmail === 'string')) {\n  valid = false;\n  payload = null;\n}\nreturn [{ json: { valid, payload } }];"
       },
-      "id": "8fe8451d-2911-4d37-a172-660520b44d65",
+      "id": "30202c50-51ca-4863-ab4c-daf2ab4aad8c",
       "name": "Verify signature",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -45,7 +46,7 @@
           },
           "conditions": [
             {
-              "id": "d759b900-b6f0-43ed-b158-ade5a9bc8106",
+              "id": "bee8eda3-1ab2-4113-8799-d0dda93b75ff",
               "leftValue": "={{ $json.valid }}",
               "rightValue": "",
               "operator": {
@@ -59,7 +60,7 @@
         },
         "options": {}
       },
-      "id": "0f5125da-e05e-4d51-8326-debfeb72cd0a",
+      "id": "3f93be05-e597-4fa1-98d2-f7a229c6ca74",
       "name": "Signature valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -76,7 +77,7 @@
           "responseCode": 401
         }
       },
-      "id": "3345e81b-4ecd-4341-a677-6613357a7fe5",
+      "id": "2f689694-c003-4d47-b7a2-e80b71f01653",
       "name": "Reject (401)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -90,7 +91,7 @@
         "mode": "runOnceForAllItems",
         "jsCode": "// Continue with just the verified payload.\nreturn [{ json: $input.first().json.payload }];"
       },
-      "id": "85aea368-1b7a-4b74-9073-bcc9743e388e",
+      "id": "b4f1ad04-fae2-4f5e-8974-2b217311a02f",
       "name": "Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -113,7 +114,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "47e36c89-c92b-4612-83d3-707729f7c7a7",
+                    "id": "6310f2b5-aee4-4a2b-85e0-b5149a005729",
                     "leftValue": "={{ $json.type }}",
                     "rightValue": "created",
                     "operator": {
@@ -137,7 +138,7 @@
                 },
                 "conditions": [
                   {
-                    "id": "82fa9b7e-17b9-4ec6-9584-c5d3b033c0bb",
+                    "id": "92e02e8c-71c0-4e34-95e3-d96850946437",
                     "leftValue": "={{ $json.type }}",
                     "rightValue": "status_changed",
                     "operator": {
@@ -155,7 +156,7 @@
         },
         "options": {}
       },
-      "id": "922795d5-6c97-428b-8a9a-156185061a30",
+      "id": "3d8a9224-8b12-4aaa-a360-a0fc03375991",
       "name": "Route by type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
@@ -175,7 +176,7 @@
           "appendAttribution": false
         }
       },
-      "id": "953c07f5-ec25-4a30-94f8-25467db03b83",
+      "id": "38d123cc-1af3-45dc-86c8-2f745a234704",
       "name": "Email lender",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
@@ -185,7 +186,7 @@
       ],
       "credentials": {
         "smtp": {
-          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL",
+          "id": "lendloopSmtp0001",
           "name": "LendLoop SMTP"
         }
       },
@@ -205,7 +206,7 @@
           "appendAttribution": false
         }
       },
-      "id": "12496560-d192-42ed-b02a-8238d6bfa4fc",
+      "id": "07d0f574-4516-4b26-9925-b8e00360c7f4",
       "name": "Email borrower",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
@@ -215,7 +216,7 @@
       ],
       "credentials": {
         "smtp": {
-          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL",
+          "id": "lendloopSmtp0001",
           "name": "LendLoop SMTP"
         }
       },
@@ -229,7 +230,7 @@
         "mode": "runOnceForAllItems",
         "jsCode": "// Signs a request to Convex: hex(HMAC_SHA256(secret, timestamp + \".\" + body)).\n// The secret comes from the container env, so this export never contains it.\nconst crypto = require('crypto');\nfunction signed(body) {\n  const secret = $env.LENDLOOP_INBOUND_SECRET;\n  if (!secret) throw new Error('LENDLOOP_INBOUND_SECRET is not set');\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = crypto.createHmac('sha256', secret).update(timestamp + '.' + body).digest('hex');\n  return { body, timestamp, signature, eventId: crypto.randomUUID() };\n}\n\n// Runs after either email node: the error output carries an \"error\" field.\nconst payload = $('Verify signature').first().json.payload;\nconst failed = 'error' in $input.first().json;\nconst body = JSON.stringify({\n  idempotencyKey: 'notify:' + payload.eventId,\n  loanId: payload.loanId,\n  type: 'request_notification',\n  status: failed ? 'failed' : 'sent',\n});\nreturn [{ json: { emailStatus: failed ? 'failed' : 'sent', signed: signed(body) } }];"
       },
-      "id": "7c8d40ae-0481-46d7-8647-6a8087a51bcd",
+      "id": "eec4ab03-3f77-4bf1-96b5-0380587742c9",
       "name": "Sign write-back",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -267,7 +268,7 @@
           "timeout": 10000
         }
       },
-      "id": "11232c79-0a0e-4443-9fca-dc4eac5989c4",
+      "id": "d77ade3d-3fc1-4afd-a346-18c0304055ff",
       "name": "Write back to Convex",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -290,7 +291,7 @@
           },
           "conditions": [
             {
-              "id": "510014c4-c123-49f7-b18b-01d77dbcd555",
+              "id": "0523757b-3e6a-4137-8d8a-294d3e645040",
               "leftValue": "={{ $('Sign write-back').first().json.emailStatus === 'sent' }}",
               "rightValue": "",
               "operator": {
@@ -304,7 +305,7 @@
         },
         "options": {}
       },
-      "id": "5da2d58f-8160-48b6-8a33-8ff6fdee5cef",
+      "id": "3e351781-7b48-4d66-9384-35ceb7ad1e37",
       "name": "Email sent?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -321,7 +322,7 @@
           "responseCode": 200
         }
       },
-      "id": "63a4e618-d7ee-43e8-8790-0e78d2387f58",
+      "id": "af06ab25-ab62-44eb-a713-84a3bf8356fc",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -338,7 +339,7 @@
           "responseCode": 502
         }
       },
-      "id": "5389298f-ec7f-45c2-bed2-7f99d318bfba",
+      "id": "681d7b67-1f88-4827-81a3-5a2ecb944cbc",
       "name": "Respond 502 (Convex retries)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -499,6 +500,7 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
+    "errorWorkflow": "lendloopErrorWf1",
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
     "saveManualExecutions": true

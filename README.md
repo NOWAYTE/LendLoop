@@ -152,7 +152,17 @@ Quick tunnels get a new URL each time they start. When that happens, update `WEB
 
 ### 7. Import the workflows
 
-In n8n: **Workflows → Import from file**, once for each file in `n8n/workflows/`:
+**Fastest (CLI):** imports the Mailpit SMTP credential and all three workflows. The exports already reference that credential (`lendloopSmtp0001`) and set the error workflow (`lendloopErrorWf1`), so 1 and 2 in the list further down are done for you:
+
+```bash
+docker compose exec n8n n8n import:credentials --input=/lendloop-n8n/credentials/mailpit-smtp.json
+docker compose exec n8n n8n import:workflow --separate --input=/lendloop-n8n/workflows
+docker compose restart n8n
+```
+
+Then activate the two main workflows in the UI (step 3 below).
+
+**Or by hand:** in n8n, **Workflows → Import from file**, once for each file in `n8n/workflows/`:
 
 | File | Workflow |
 |---|---|

@@ -1,4 +1,5 @@
 {
+  "id": "lendloopOverdue01",
   "name": "LendLoop – Overdue reminders",
   "nodes": [
     {
@@ -11,7 +12,7 @@
           ]
         }
       },
-      "id": "2f02968b-86d5-478a-aba7-72a0b7f83d4d",
+      "id": "5cc88519-e3a8-4a46-aeb4-d3372cc30a57",
       "name": "Every day at 08:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -22,7 +23,7 @@
     },
     {
       "parameters": {},
-      "id": "03015ae0-02e8-41e4-9bd6-fbb5eb21d67e",
+      "id": "23a63157-77f3-4170-9186-3af2e8cb916b",
       "name": "Run manually",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -36,7 +37,7 @@
         "mode": "runOnceForAllItems",
         "jsCode": "// Signs a request to Convex: hex(HMAC_SHA256(secret, timestamp + \".\" + body)).\n// The secret comes from the container env, so this export never contains it.\nconst crypto = require('crypto');\nfunction signed(body) {\n  const secret = $env.LENDLOOP_INBOUND_SECRET;\n  if (!secret) throw new Error('LENDLOOP_INBOUND_SECRET is not set');\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = crypto.createHmac('sha256', secret).update(timestamp + '.' + body).digest('hex');\n  return { body, timestamp, signature, eventId: crypto.randomUUID() };\n}\n\n// GET has an empty body, so the signature covers timestamp + \".\".\nreturn [{ json: { signed: signed('') } }];"
       },
-      "id": "be112d1f-de15-47fa-bb1c-82d9551974fb",
+      "id": "291181df-d548-42b3-9a99-a026aadaed5f",
       "name": "Sign request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -70,7 +71,7 @@
           "timeout": 15000
         }
       },
-      "id": "d678bf93-aa8a-4bf0-995f-ec6d73794a3f",
+      "id": "c7f53033-1a20-4c29-ba70-9adeaf7b7b12",
       "name": "Fetch overdue loans",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -87,7 +88,7 @@
         "fieldToSplitOut": "loans",
         "options": {}
       },
-      "id": "864b2836-dff7-4d0b-8639-06ab4072f9db",
+      "id": "afb8d3ae-79d3-4871-9c4a-84ebaecd2e00",
       "name": "One item per loan",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
@@ -107,7 +108,7 @@
           },
           "conditions": [
             {
-              "id": "7ee34fad-2b78-4e1a-87cd-44be3168e815",
+              "id": "fca80365-cc5e-4751-bb74-89bf97ca6b2b",
               "leftValue": "={{ $json.remindedToday }}",
               "rightValue": "",
               "operator": {
@@ -121,7 +122,7 @@
         },
         "options": {}
       },
-      "id": "f4de7374-83bd-42ee-a2ba-6eecf7f94035",
+      "id": "0ec7ebce-a380-4178-aa2b-10425fb5701c",
       "name": "Not reminded today?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -141,7 +142,7 @@
           "appendAttribution": false
         }
       },
-      "id": "01650790-ae9b-450c-80e3-a4d741014d4e",
+      "id": "2e00c36a-0345-480d-b47c-51610559a3ef",
       "name": "Email reminder",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
@@ -151,7 +152,7 @@
       ],
       "credentials": {
         "smtp": {
-          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL",
+          "id": "lendloopSmtp0001",
           "name": "LendLoop SMTP"
         }
       },
@@ -165,7 +166,7 @@
         "mode": "runOnceForEachItem",
         "jsCode": "// Signs a request to Convex: hex(HMAC_SHA256(secret, timestamp + \".\" + body)).\n// The secret comes from the container env, so this export never contains it.\nconst crypto = require('crypto');\nfunction signed(body) {\n  const secret = $env.LENDLOOP_INBOUND_SECRET;\n  if (!secret) throw new Error('LENDLOOP_INBOUND_SECRET is not set');\n  const timestamp = String(Math.floor(Date.now() / 1000));\n  const signature = crypto.createHmac('sha256', secret).update(timestamp + '.' + body).digest('hex');\n  return { body, timestamp, signature, eventId: crypto.randomUUID() };\n}\n\n// One item per loan. The error output of the email node carries an \"error\" field.\nconst loan = $('Not reminded today?').item.json;\nconst failed = 'error' in $json;\nconst body = JSON.stringify({\n  idempotencyKey: loan.idempotencyKey,\n  loanId: loan.loanId,\n  type: 'overdue_reminder',\n  status: failed ? 'failed' : 'sent',\n});\nreturn { json: { signed: signed(body) } };"
       },
-      "id": "635d62d6-2a53-4cb2-8ee0-0416dde7eb29",
+      "id": "9ca4f7f5-9516-4076-b907-071387d35076",
       "name": "Sign write-back",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -203,7 +204,7 @@
           "timeout": 10000
         }
       },
-      "id": "0483a6bc-6ca0-48f3-97be-c07f8f6afb3f",
+      "id": "c87046d0-0530-448c-8a6b-67cf5c0fe2c0",
       "name": "Write back to Convex",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -317,6 +318,7 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
+    "errorWorkflow": "lendloopErrorWf1",
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
     "saveManualExecutions": true
